@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HW10 Exercise 3: Chat App Writeup</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      body {
+        padding: 2rem;
+        max-width: 720px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin-bottom: 0.5rem;
+      }
+      h2 {
+        margin-top: 1.75rem;
+        margin-bottom: 0.5rem;
+      }
+      h3 {
+        margin-top: 1.25rem;
+        margin-bottom: 0.25rem;
+      }
+      pre {
+        background: var(--bg-2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        overflow-x: auto;
+        font-size: 0.85rem;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      p,
+      li {
+        line-height: 1.5;
+      }
+      ul {
+        padding-left: 1.25rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Chat App Writeup</h1>
+    <p>Four actions: create, join, send, star.</p>
+
+    <h2>What / Where / Who</h2>
+
+    <h3>Create Chat</h3>
+    <ul>
+      <li>What: new chat with a random channel.</li>
+      <li>
+        Where: the chat's own channel (not class-wide, so chats aren't publicly
+        browseable).
+      </li>
+      <li>Who: public within the channel.</li>
+    </ul>
+    <pre><code>{
+  activity: "Create",
+  type: "Chat",
+  title,
+  channel: crypto.randomUUID(),
+  published: Date.now()
+}</code></pre>
+
+    <h3>Join Chat</h3>
+    <ul>
+      <li>
+        What: record that I joined a chat. Triggered on create, or on pasting an
+        invite ID.
+      </li>
+      <li>
+        Where: my actor ID (for my sidebar) + the chat channel (so others see
+        me).
+      </li>
+      <li>Who: public. Leave = delete the Join.</li>
+    </ul>
+    <pre><code>{
+  activity: "Join",
+  target: chatChannel,
+  title,
+  published: Date.now()
+}</code></pre>
+
+    <h3>Send Message</h3>
+    <ul>
+      <li>What: a message.</li>
+      <li>Where: the chat channel.</li>
+      <li>Who: public in the channel. Unsend = delete the message.</li>
+    </ul>
+    <pre><code>{
+  content,
+  published: Date.now()
+}</code></pre>
+
+    <h3>Star Message</h3>
+    <ul>
+      <li>What: a star pointing at a message.</li>
+      <li>Where: the chat channel.</li>
+      <li>Who: public in the channel. Unstar = delete the Star.</li>
+    </ul>
+    <pre><code>{
+  activity: "Star",
+  object: messageUrl,
+  published: Date.now()
+}</code></pre>
+
+    <h2>Notes</h2>
+    <ul>
+      <li>
+        You join a chat either by creating one or by pasting an invite ID. The
+        Invite button in the chat header copies the channel ID to share.
+      </li>
+      <li>
+        Star is its own object (not a field on the message) so it's toggleable
+        after the fact and anyone in the chat can flag something important.
+      </li>
+      <li>Recap is a filter over messages that have a Star.</li>
+      <li>
+        Yellow means "important," not "mine." Mine is blue, theirs is gray.
+      </li>
+      <li>
+        All discovers use <code>autopoll: true</code> so new stuff streams in
+        without refreshing.
+      </li>
+      <li>User-facing labels: "Chats," "Invite," "Important," "Recap."</li>
+    </ul>
+  </body>
+</html>
