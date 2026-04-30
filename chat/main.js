@@ -134,7 +134,11 @@ export default function () {
 
       const starObjects = computed(() =>
         chatItemObjects.value.filter(
-          (o) => o.value && o.value.activity === "Star" && o.value.object,
+          (o) =>
+            o.value &&
+            o.value.activity === "Star" &&
+            o.value.object &&
+            memberActors.value.has(o.actor),
         ),
       );
 

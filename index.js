@@ -79,13 +79,14 @@ function setup() {
     useGraffitiDiscover(
       () => (session.value ? [session.value.actor] : []),
       joinSchema,
-      undefined,
-      true,
     );
 
   const myChats = computed(() => {
+    const me = session.value?.actor;
+    if (!me) return [];
     const byChannel = new Map();
     for (const j of myJoinObjects.value) {
+      if (j.actor !== me) continue;
       const ch = j.value.target;
       const existing = byChannel.get(ch);
       if (!existing || (j.value.published || 0) > (existing.value.published || 0)) {
