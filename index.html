@@ -8,6 +8,7 @@
       {
         "imports": {
           "vue": "https://cdn.jsdelivr.net/npm/vue@3.5.32/dist/vue.esm-browser.js",
+          "vue-router": "https://cdn.jsdelivr.net/npm/vue-router@5.0.4/dist/vue-router.esm-browser.prod.js",
           "@graffiti-garden/implementation-decentralized": "https://cdn.jsdelivr.net/npm/@graffiti-garden/implementation-decentralized@0.0.9/dist/browser/index.js",
           "@graffiti-garden/wrapper-vue": "https://cdn.jsdelivr.net/npm/@graffiti-garden/wrapper-vue@1.2.2/dist/browser/plugin.mjs"
         }
@@ -29,151 +30,37 @@
       <div v-else class="app">
         <aside class="sidebar" :class="{ open: isSidebarOpen }">
           <header class="sidebar-head">
-            <h1>Chats</h1>
+            <router-link to="/" class="brand"><h1>Chats</h1></router-link>
             <button class="icon close" @click="isSidebarOpen = false" aria-label="Close">×</button>
           </header>
 
           <p v-if="areMyChatsLoading" class="muted">Loading…</p>
           <p v-else-if="!myChats.length" class="muted">No chats yet.</p>
           <ul v-else class="chat-list">
-            <li
-              v-for="join in myChats"
-              :key="join.value.target"
-              :class="{ active: activeChannel === join.value.target }"
-              @click="openChat(join.value.target, join.value.title)"
-            >
-              <span class="dot"></span>
-              <span class="title">{{ join.value.title || 'Untitled' }}</span>
+            <li v-for="join in myChats" :key="join.value.target">
+              <router-link
+                :to="`/chat/${encodeURIComponent(join.value.target)}`"
+                class="chat-link"
+                @click="onChatClick"
+              >
+                <span class="dot"></span>
+                <span class="title">{{ join.value.title || 'Untitled' }}</span>
+              </router-link>
             </li>
           </ul>
 
           <footer class="sidebar-foot">
-            <button class="secondary" @click="isCreateOpen = true">+ New chat</button>
+            <router-link to="/newchat" class="secondary nav-link">+ New chat</router-link>
             <button class="secondary" @click="isJoinOpen = true">Join by invite</button>
+            <router-link to="/about" class="link nav-link">About</router-link>
             <button class="link" @click="$graffiti.logout($graffitiSession.value)">Log out</button>
           </footer>
         </aside>
 
         <main class="main">
-          <header class="main-head">
-            <button class="icon menu" @click="isSidebarOpen = true" aria-label="Menu">☰</button>
-            <h2>{{ activeTitle || 'Pick a chat' }}</h2>
-            <div class="spacer"></div>
-            <button
-              v-if="activeChannel"
-              class="icon"
-              @click="copyInvite"
-              title="Copy invite ID"
-            >{{ justCopied ? 'Copied' : 'Invite' }}</button>
-            <button
-              v-if="activeChannel"
-              class="icon"
-              :class="{ on: isRecapOpen }"
-              @click="isRecapOpen = !isRecapOpen"
-              title="Recap important messages"
-            >Recap</button>
-            <button
-              v-if="activeChannel"
-              class="icon danger"
-              @click="leaveChat"
-              :disabled="isLeaving"
-              title="Leave chat"
-            >{{ isLeaving ? 'Leaving…' : 'Leave' }}</button>
-          </header>
-
-          <div v-if="!activeChannel" class="empty">
-            <p class="muted">Open a chat from the sidebar, or make a new one.</p>
-          </div>
-
-          <template v-else>
-            <div class="messages">
-              <p v-if="areMessagesLoading" class="muted centered">Loading messages…</p>
-              <template v-else>
-                <div v-if="sortedMessages.length === 0" class="empty">
-                  <p class="muted">No messages yet. Say hi.</p>
-                </div>
-                <div
-                  v-for="msg in sortedMessages"
-                  :key="msg.url"
-                  :class="['msg', msg.actor === $graffitiSession.value?.actor ? 'mine' : 'theirs', { starred: isStarred(msg.url) }]"
-                >
-                  <div class="msg-meta">
-                    <graffiti-actor-to-handle :actor="msg.actor"></graffiti-actor-to-handle>
-                    <span class="time">{{ fmtTime(msg.value.published) }}</span>
-                  </div>
-                  <div class="bubble">
-                    <span class="content">{{ msg.value.content }}</span>
-                    <div class="actions">
-                      <button
-                        class="star"
-                        :class="{ on: isStarred(msg.url) }"
-                        @click="toggleStar(msg)"
-                        :title="isStarred(msg.url) ? 'Unmark important' : 'Mark important'"
-                      >★</button>
-                      <button
-                        v-if="msg.actor === $graffitiSession.value?.actor"
-                        class="unsend"
-                        @click="deleteMessage(msg)"
-                        :disabled="isDeleting.has(msg.url)"
-                        title="Unsend"
-                      >{{ isDeleting.has(msg.url) ? 'unsending…' : 'unsend' }}</button>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </div>
-
-            <div v-if="isRecapOpen" class="recap">
-              <header>
-                <h3>Recap — Important</h3>
-                <button class="icon" @click="isRecapOpen = false">×</button>
-              </header>
-              <div v-if="starredMessages.length === 0" class="empty">
-                <p class="muted">Nothing marked important yet.</p>
-              </div>
-              <ul v-else>
-                <li v-for="msg in starredMessages" :key="msg.url">
-                  <span class="time">{{ fmtTime(msg.value.published) }}</span>
-                  <span>{{ msg.value.content }}</span>
-                </li>
-              </ul>
-            </div>
-
-            <form class="composer" @submit.prevent="sendMessage">
-              <button
-                type="button"
-                class="star-toggle"
-                :class="{ on: isStarNext }"
-                @click="isStarNext = !isStarNext"
-                :title="isStarNext ? 'Important: on' : 'Mark as important'"
-              >★<span class="lbl">{{ isStarNext ? 'Important' : '' }}</span></button>
-              <input
-                v-model="myMessage"
-                type="text"
-                placeholder="Message"
-                :disabled="isSending"
-              />
-              <button type="submit" class="primary" :disabled="!myMessage.trim() || isSending">
-                {{ isSending ? 'Sending…' : 'Send' }}
-              </button>
-            </form>
-          </template>
+          <button class="icon menu floating" @click="isSidebarOpen = true" aria-label="Menu">☰</button>
+          <router-view />
         </main>
-      </div>
-
-      <div v-if="isCreateOpen" class="modal-backdrop" @click.self="isCreateOpen = false">
-        <div class="modal">
-          <h3>New chat</h3>
-          <form @submit.prevent="createChat">
-            <input v-model="newTitle" type="text" placeholder="Chat title" required autofocus />
-            <div class="row">
-              <button type="button" class="secondary" @click="isCreateOpen = false">Cancel</button>
-              <button type="submit" class="primary" :disabled="!newTitle.trim() || isCreating">
-                {{ isCreating ? 'Creating…' : 'Create & Join' }}
-              </button>
-            </div>
-          </form>
-        </div>
       </div>
 
       <div v-if="isJoinOpen" class="modal-backdrop" @click.self="isJoinOpen = false">

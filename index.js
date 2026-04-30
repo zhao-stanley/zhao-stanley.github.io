@@ -1,4 +1,5 @@
-import { createApp, ref, computed } from "vue";
+import { createApp, ref, computed, provide } from "vue";
+import { createRouter, createWebHashHistory } from "vue-router";
 import { GraffitiDecentralized } from "@graffiti-garden/implementation-decentralized";
 import {
   GraffitiPlugin,
@@ -6,8 +7,24 @@ import {
   useGraffitiSession,
   useGraffitiDiscover,
 } from "@graffiti-garden/wrapper-vue";
+import { MessageBubble } from "./components/message-bubble.js";
 
-const chatSchema = {
+function loadComponent(name) {
+  return () => import(`./${name}/main.js`).then((m) => m.default());
+}
+
+const router = createRouter({
+  history: createWebHashHistory(),
+  routes: [
+    { path: "/", component: loadComponent("home") },
+    { path: "/chat/:chatId", component: loadComponent("chat"), props: true },
+    { path: "/newchat", component: loadComponent("newchat") },
+    { path: "/about", component: loadComponent("about") },
+    { path: "/:pathMatch(.*)*", redirect: "/" },
+  ],
+});
+
+export const chatSchema = {
   properties: {
     value: {
       required: ["activity", "type", "title", "channel", "published"],
@@ -22,7 +39,7 @@ const chatSchema = {
   },
 };
 
-const joinSchema = {
+export const joinSchema = {
   properties: {
     value: {
       required: ["activity", "target"],
@@ -36,7 +53,7 @@ const joinSchema = {
   },
 };
 
-const chatItemSchema = {
+export const chatItemSchema = {
   properties: {
     value: {
       properties: {
@@ -54,33 +71,14 @@ function setup() {
   const session = useGraffitiSession();
 
   const isSidebarOpen = ref(true);
-  const activeChannel = ref(null);
-  const activeTitle = ref("");
-  const myMessage = ref("");
-  const isSending = ref(false);
-  const isStarNext = ref(false);
-  const isRecapOpen = ref(false);
-  const isCreateOpen = ref(false);
-  const newTitle = ref("");
-  const isCreating = ref(false);
-  const isLeaving = ref(false);
   const isJoinOpen = ref(false);
   const inviteId = ref("");
   const isJoining = ref(false);
-  const justCopied = ref(false);
 
   const { objects: myJoinObjects, isFirstPoll: areMyChatsLoading } =
     useGraffitiDiscover(
       () => (session.value ? [session.value.actor] : []),
       joinSchema,
-      undefined,
-      true,
-    );
-
-  const { objects: chatItemObjects, isFirstPoll: areMessagesLoading } =
-    useGraffitiDiscover(
-      () => (activeChannel.value ? [activeChannel.value] : []),
-      chatItemSchema,
       undefined,
       true,
     );
@@ -99,52 +97,6 @@ function setup() {
     );
   });
 
-  const sortedMessages = computed(() =>
-    chatItemObjects.value
-      .filter((o) => o.value && typeof o.value.content === "string")
-      .toSorted(
-        (a, b) => (a.value.published || 0) - (b.value.published || 0),
-      ),
-  );
-
-  const starObjects = computed(() =>
-    chatItemObjects.value.filter(
-      (o) => o.value && o.value.activity === "Star" && o.value.object,
-    ),
-  );
-
-  const starredUrls = computed(
-    () => new Set(starObjects.value.map((s) => s.value.object)),
-  );
-
-  const starredMessages = computed(() =>
-    sortedMessages.value.filter((m) => starredUrls.value.has(m.url)),
-  );
-
-  function isStarred(url) {
-    return starredUrls.value.has(url);
-  }
-
-  function myStarsFor(url) {
-    const me = session.value?.actor;
-    return starObjects.value.filter(
-      (s) => s.value.object === url && s.actor === me,
-    );
-  }
-
-  function fmtTime(ts) {
-    if (!ts) return "";
-    const d = new Date(ts);
-    const today = new Date();
-    const sameDay =
-      d.getFullYear() === today.getFullYear() &&
-      d.getMonth() === today.getMonth() &&
-      d.getDate() === today.getDate();
-    return sameDay
-      ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-      : d.toLocaleDateString([], { month: "short", day: "numeric" });
-  }
-
   async function postJoin(channel, title) {
     await graffiti.post(
       {
@@ -158,41 +110,6 @@ function setup() {
       },
       session.value,
     );
-  }
-
-  function openChat(channel, title) {
-    activeChannel.value = channel;
-    activeTitle.value = title || "Chat";
-    isRecapOpen.value = false;
-    if (window.innerWidth < 720) isSidebarOpen.value = false;
-  }
-
-  async function createChat() {
-    if (!newTitle.value.trim()) return;
-    isCreating.value = true;
-    try {
-      const channel = crypto.randomUUID();
-      const title = newTitle.value.trim();
-      await graffiti.post(
-        {
-          value: {
-            activity: "Create",
-            type: "Chat",
-            title,
-            channel,
-            published: Date.now(),
-          },
-          channels: [channel],
-        },
-        session.value,
-      );
-      await postJoin(channel, title);
-      openChat(channel, title);
-      isCreateOpen.value = false;
-      newTitle.value = "";
-    } finally {
-      isCreating.value = false;
-    }
   }
 
   async function fetchChatTitle(channel) {
@@ -213,139 +130,44 @@ function setup() {
     try {
       const title = await fetchChatTitle(channel);
       await postJoin(channel, title);
-      openChat(channel, title);
       inviteId.value = "";
       isJoinOpen.value = false;
+      router.push(`/chat/${encodeURIComponent(channel)}`);
     } finally {
       isJoining.value = false;
     }
   }
 
-  async function copyInvite() {
-    if (!activeChannel.value) return;
-    await navigator.clipboard.writeText(activeChannel.value);
-    justCopied.value = true;
-    setTimeout(() => (justCopied.value = false), 1200);
+  function onChatClick() {
+    if (window.innerWidth < 720) isSidebarOpen.value = false;
   }
 
-  async function leaveChat() {
-    if (!activeChannel.value) return;
-    if (!confirm(`Leave "${activeTitle.value}"?`)) return;
-    isLeaving.value = true;
-    try {
-      const mine = myJoinObjects.value.filter(
-        (j) => j.value.target === activeChannel.value,
-      );
-      await Promise.all(mine.map((j) => graffiti.delete(j, session.value)));
-      activeChannel.value = null;
-      activeTitle.value = "";
-    } finally {
-      isLeaving.value = false;
-    }
-  }
-
-  async function sendMessage() {
-    if (!myMessage.value.trim()) return;
-    isSending.value = true;
-    const content = myMessage.value.trim();
-    const wantStar = isStarNext.value;
-    try {
-      const posted = await graffiti.post(
-        {
-          value: { content, published: Date.now() },
-          channels: [activeChannel.value],
-        },
-        session.value,
-      );
-      if (wantStar) {
-        await graffiti.post(
-          {
-            value: {
-              activity: "Star",
-              object: posted.url,
-              published: Date.now(),
-            },
-            channels: [activeChannel.value],
-          },
-          session.value,
-        );
-      }
-      myMessage.value = "";
-      isStarNext.value = false;
-    } finally {
-      isSending.value = false;
-    }
-  }
-
-  const isDeleting = ref(new Set());
-  async function deleteMessage(msg) {
-    if (!confirm("Unsend this message?")) return;
-    isDeleting.value.add(msg.url);
-    try {
-      await graffiti.delete(msg, session.value);
-    } finally {
-      isDeleting.value.delete(msg.url);
-    }
-  }
-
-  async function toggleStar(msg) {
-    const mine = myStarsFor(msg.url);
-    if (mine.length) {
-      await Promise.all(mine.map((s) => graffiti.delete(s, session.value)));
-    } else {
-      await graffiti.post(
-        {
-          value: {
-            activity: "Star",
-            object: msg.url,
-            published: Date.now(),
-          },
-          channels: [activeChannel.value],
-        },
-        session.value,
-      );
-    }
-  }
+  provide("graffiti", graffiti);
+  provide("session", session);
+  provide("myChats", myChats);
+  provide("myJoinObjects", myJoinObjects);
+  provide("postJoin", postJoin);
+  provide("fetchChatTitle", fetchChatTitle);
+  provide("closeSidebarOnMobile", onChatClick);
 
   return {
     isSidebarOpen,
-    activeChannel,
-    activeTitle,
-    myMessage,
-    isSending,
-    isStarNext,
-    isRecapOpen,
-    isCreateOpen,
-    newTitle,
-    isCreating,
-    isLeaving,
     isJoinOpen,
     inviteId,
     isJoining,
-    justCopied,
-    isDeleting,
-    myChats,
-    sortedMessages,
-    starredMessages,
     areMyChatsLoading,
-    areMessagesLoading,
-    isStarred,
-    fmtTime,
-    openChat,
-    createChat,
+    myChats,
     joinByInvite,
-    copyInvite,
-    leaveChat,
-    sendMessage,
-    deleteMessage,
-    toggleStar,
+    onChatClick,
   };
 }
 
 const App = { template: "#template", setup };
 
 createApp(App)
+  .use(router)
   .use(GraffitiPlugin, {
     graffiti: new GraffitiDecentralized(),
   })
+  .component("MessageBubble", MessageBubble)
   .mount("#app");
