@@ -81,27 +81,29 @@ export const MessageBubble = {
       </div>
 
       <teleport to="body">
-        <div
-          v-if="isSeenOpen"
-          class="modal-backdrop"
-          @click.self="isSeenOpen = false"
-        >
-          <div class="modal seen-modal">
-            <h3>Seen by</h3>
-            <p class="muted seen-stats">
-              {{ readers.length }}/{{ denominator }} members
-            </p>
-            <ul class="seen-list">
-              <li v-for="r in readers" :key="r.actor">
-                <graffiti-actor-to-handle :actor="r.actor"></graffiti-actor-to-handle>
-                <span class="time">{{ fmtFullTime(r.lastRead) }}</span>
-              </li>
-            </ul>
-            <div class="row">
-              <button class="secondary" @click="isSeenOpen = false">Close</button>
+        <transition name="seen-pop">
+          <div
+            v-if="isSeenOpen"
+            class="modal-backdrop"
+            @click.self="isSeenOpen = false"
+          >
+            <div class="modal seen-modal">
+              <h3>Seen by</h3>
+              <p class="muted seen-stats">
+                {{ readers.length }}/{{ denominator }} members
+              </p>
+              <ul class="seen-list">
+                <li v-for="r in readers" :key="r.actor">
+                  <graffiti-actor-to-handle :actor="r.actor"></graffiti-actor-to-handle>
+                  <span class="time">{{ fmtFullTime(r.lastRead) }}</span>
+                </li>
+              </ul>
+              <div class="row">
+                <button class="secondary" @click="isSeenOpen = false">Close</button>
+              </div>
             </div>
           </div>
-        </div>
+        </transition>
       </teleport>
     </div>
   `,

@@ -39,18 +39,20 @@ export default function () {
           <div v-if="sortedMessages.length === 0" class="empty">
             <p class="muted">No messages yet. Say hi.</p>
           </div>
-          <message-bubble
-            v-for="msg in sortedMessages"
-            :key="msg.url"
-            :msg="msg"
-            :me="me"
-            :is-starred="isStarred(msg.url)"
-            :is-deleting="isDeleting.has(msg.url)"
-            :readers="readersFor(msg.url)"
-            :member-count="memberCount"
-            @toggle-star="toggleStar"
-            @delete="deleteMessage"
-          ></message-bubble>
+          <transition-group name="msg" tag="div" class="msg-list">
+            <message-bubble
+              v-for="msg in sortedMessages"
+              :key="msg.url"
+              :msg="msg"
+              :me="me"
+              :is-starred="isStarred(msg.url)"
+              :is-deleting="isDeleting.has(msg.url)"
+              :readers="readersFor(msg.url)"
+              :member-count="memberCount"
+              @toggle-star="toggleStar"
+              @delete="deleteMessage"
+            ></message-bubble>
+          </transition-group>
         </template>
       </div>
 

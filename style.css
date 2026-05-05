@@ -334,6 +334,46 @@ h3 {
   gap: 0.75rem;
 }
 
+.msg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.msg-enter-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.msg-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.msg-leave-active {
+  transition: opacity 0.15s ease;
+  position: absolute;
+}
+
+.msg-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .msg-enter-active,
+  .msg-leave-active,
+  .seen-pop-enter-active,
+  .seen-pop-leave-active,
+  .seen-pop-enter-active .modal,
+  .seen-pop-leave-active .modal {
+    transition: none;
+  }
+  .bubble .star.on {
+    animation: none;
+  }
+}
+
 .msg {
   max-width: 78%;
   display: flex;
@@ -439,6 +479,19 @@ h3 {
 
 .bubble .star.on {
   color: var(--accent);
+  animation: star-pop 0.3s ease;
+}
+
+@keyframes star-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.4);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .bubble .unsend:hover {
@@ -694,6 +747,29 @@ h3 {
   place-items: center;
   z-index: 10;
   padding: 1rem;
+}
+
+.seen-pop-enter-active,
+.seen-pop-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.seen-pop-enter-active .modal,
+.seen-pop-leave-active .modal {
+  transition:
+    transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.18s ease;
+}
+
+.seen-pop-enter-from,
+.seen-pop-leave-to {
+  opacity: 0;
+}
+
+.seen-pop-enter-from .modal,
+.seen-pop-leave-to .modal {
+  opacity: 0;
+  transform: scale(0.94);
 }
 
 .modal {
