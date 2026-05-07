@@ -408,6 +408,19 @@ h3 {
   word-wrap: break-word;
 }
 
+.bubble .msg-link,
+.bubble .msg-link:visited {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.55);
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+
+.bubble .msg-link:hover {
+  text-decoration-color: currentColor;
+}
+
 .msg.mine .bubble {
   background: var(--mine);
   color: var(--mine-text);
@@ -703,11 +716,14 @@ h3 {
   color: var(--text);
 }
 
-.recap li .link-url {
+.recap li .link-url,
+.recap li .link-url:visited {
   color: #6aa1ff;
   text-decoration: none;
   word-break: break-all;
   font-size: 0.88rem;
+  align-self: flex-start;
+  max-width: 100%;
 }
 
 .recap li .link-url:hover {

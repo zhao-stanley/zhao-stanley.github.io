@@ -15,6 +15,26 @@ export const MessageBubble = {
     const isSeenOpen = ref(false);
     const denominator = computed(() => Math.max(props.memberCount - 1, 0));
 
+    const linkRegex = /\bhttps?:\/\/[^\s<>"'`]+/gi;
+    const contentParts = computed(() => {
+      const text = props.msg?.value?.content || "";
+      const out = [];
+      let last = 0;
+      const re = new RegExp(linkRegex.source, linkRegex.flags);
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        if (m.index > last) {
+          out.push({ type: "text", value: text.slice(last, m.index) });
+        }
+        out.push({ type: "link", value: m[0] });
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) {
+        out.push({ type: "text", value: text.slice(last) });
+      }
+      return out;
+    });
+
     function fmtTime(ts) {
       if (!ts) return "";
       const d = new Date(ts);
@@ -43,6 +63,7 @@ export const MessageBubble = {
       isMine,
       isSeenOpen,
       denominator,
+      contentParts,
       fmtTime,
       fmtFullTime,
     };
@@ -57,7 +78,13 @@ export const MessageBubble = {
         <span class="time">{{ fmtTime(msg.value.published) }}</span>
       </div>
       <div class="bubble">
-        <span class="content">{{ msg.value.content }}</span>
+        <span class="content"><template v-for="(p, i) in contentParts" :key="i"><a
+              v-if="p.type === 'link'"
+              :href="p.value"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="msg-link"
+            >{{ p.value }}</a><template v-else>{{ p.value }}</template></template></span>
         <div class="actions">
           <button
             class="star"

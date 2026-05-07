@@ -156,10 +156,17 @@ export default function () {
 
       const messagesEl = ref(null);
       let isAtBottom = true;
+      let hasInitialScrolled = false;
       function onScroll() {
         const el = messagesEl.value;
         if (!el) return;
         isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      }
+      function scrollToBottom() {
+        const el = messagesEl.value;
+        if (!el) return;
+        el.scrollTop = el.scrollHeight;
+        isAtBottom = true;
       }
       watch(messagesEl, (el, _, onCleanup) => {
         if (!el) return;
@@ -416,17 +423,28 @@ export default function () {
       watch(
         () => sortedMessages.value.length,
         async (newLen, oldLen) => {
-          if (newLen > (oldLen || 0)) {
-            await nextTick();
-            const el = messagesEl.value;
-            if (!el) return;
-            if (oldLen === 0 || isAtBottom) {
-              el.scrollTop = el.scrollHeight;
-              isAtBottom = true;
-            }
+          if (newLen === 0) return;
+          await nextTick();
+          if (!hasInitialScrolled) {
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                scrollToBottom();
+                hasInitialScrolled = true;
+              });
+            });
+            return;
+          }
+          if (newLen > (oldLen || 0) && isAtBottom) {
+            scrollToBottom();
           }
         },
+        { immediate: true },
       );
+
+      watch(channel, () => {
+        hasInitialScrolled = false;
+        isAtBottom = true;
+      });
 
       const autoJoinedChannels = new Set();
 
