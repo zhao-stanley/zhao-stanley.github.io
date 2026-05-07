@@ -1,4 +1,4 @@
-import { ref, computed, inject, watch } from "vue";
+import { ref, computed, inject, watch, nextTick, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import {
   useGraffiti,
@@ -23,8 +23,8 @@ export default function () {
           class="icon"
           :class="{ on: isRecapOpen }"
           @click="isRecapOpen = !isRecapOpen"
-          title="Recap important messages"
-        >Recap</button>
+          title="Highlights — important and shared content"
+        >Highlights</button>
         <button
           class="icon danger"
           @click="leaveChat"
@@ -33,7 +33,7 @@ export default function () {
         >{{ isLeaving ? 'Leaving…' : 'Leave' }}</button>
       </header>
 
-      <div class="messages">
+      <div class="messages" ref="messagesEl">
         <p v-if="areMessagesLoading" class="muted centered">Loading messages…</p>
         <template v-else>
           <div v-if="sortedMessages.length === 0" class="empty">
@@ -58,18 +58,69 @@ export default function () {
 
       <div v-if="isRecapOpen" class="recap">
         <header>
-          <h3>Recap — Important</h3>
+          <h3>Highlights</h3>
           <button class="icon" @click="isRecapOpen = false">×</button>
         </header>
-        <div v-if="starredMessages.length === 0" class="empty">
-          <p class="muted">Nothing marked important yet.</p>
+        <div class="recap-tabs">
+          <button
+            :class="{ active: highlightsTab === 'important' }"
+            @click="highlightsTab = 'important'"
+          >★ Important <span class="count">{{ starredMessages.length }}</span></button>
+          <button
+            :class="{ active: highlightsTab === 'links' }"
+            @click="highlightsTab = 'links'"
+          >🔗 Links <span class="count">{{ linkMessages.length }}</span></button>
         </div>
-        <ul v-else>
-          <li v-for="msg in starredMessages" :key="msg.url">
-            <span class="time">{{ fmtTime(msg.value.published) }}</span>
-            <span>{{ msg.value.content }}</span>
-          </li>
-        </ul>
+
+        <template v-if="highlightsTab === 'important'">
+          <div v-if="starredMessages.length === 0" class="empty">
+            <p class="muted">Nothing marked important yet. Tap ★ next to a message.</p>
+          </div>
+          <ul v-else class="highlight-list">
+            <li
+              v-for="msg in starredMessages"
+              :key="msg.url"
+              class="jumpable"
+              @click="jumpToMessage(msg.url)"
+              :title="'Jump to message'"
+            >
+              <div class="meta">
+                <graffiti-actor-to-handle :actor="msg.actor"></graffiti-actor-to-handle>
+                <span class="time">{{ fmtTime(msg.value.published) }}</span>
+              </div>
+              <span class="content">{{ msg.value.content }}</span>
+            </li>
+          </ul>
+        </template>
+
+        <template v-else-if="highlightsTab === 'links'">
+          <div v-if="linkMessages.length === 0" class="empty">
+            <p class="muted">No links shared yet. Paste a URL into the chat.</p>
+          </div>
+          <ul v-else class="highlight-list">
+            <li
+              v-for="msg in linkMessages"
+              :key="msg.url"
+              class="jumpable"
+              @click="jumpToMessage(msg.url)"
+              :title="'Jump to message'"
+            >
+              <div class="meta">
+                <graffiti-actor-to-handle :actor="msg.actor"></graffiti-actor-to-handle>
+                <span class="time">{{ fmtTime(msg.value.published) }}</span>
+              </div>
+              <a
+                v-for="(link, i) in extractLinks(msg.value.content)"
+                :key="i"
+                :href="link"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="link-url"
+                @click.stop
+              >{{ link }}</a>
+            </li>
+          </ul>
+        </template>
       </div>
 
       <form class="composer" @submit.prevent="sendMessage">
@@ -102,6 +153,23 @@ export default function () {
 
       const channel = computed(() => decodeURIComponent(props.chatId));
       const me = computed(() => session.value?.actor || "");
+
+      const messagesEl = ref(null);
+      let isAtBottom = true;
+      function onScroll() {
+        const el = messagesEl.value;
+        if (!el) return;
+        isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      }
+      watch(messagesEl, (el, _, onCleanup) => {
+        if (!el) return;
+        el.addEventListener("scroll", onScroll, { passive: true });
+        onCleanup(() => el.removeEventListener("scroll", onScroll));
+      });
+      onBeforeUnmount(() => {
+        const el = messagesEl.value;
+        if (el) el.removeEventListener("scroll", onScroll);
+      });
 
       const myMessage = ref("");
       const isSending = ref(false);
@@ -151,6 +219,35 @@ export default function () {
       const starredMessages = computed(() =>
         sortedMessages.value.filter((m) => starredUrls.value.has(m.url)),
       );
+
+      const linkRegex = /\bhttps?:\/\/[^\s<>"'`]+/gi;
+      function extractLinks(content) {
+        if (!content) return [];
+        return content.match(linkRegex) || [];
+      }
+      const linkMessages = computed(() =>
+        sortedMessages.value.filter(
+          (m) => extractLinks(m.value.content).length > 0,
+        ),
+      );
+
+      const highlightsTab = ref("important");
+
+      function jumpToMessage(url) {
+        const container = messagesEl.value;
+        if (!container) return;
+        const safe =
+          typeof CSS !== "undefined" && CSS.escape
+            ? CSS.escape(url)
+            : url.replace(/"/g, '\\"');
+        const el = container.querySelector(`[data-msg-url="${safe}"]`);
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.remove("flash");
+        void el.offsetWidth;
+        el.classList.add("flash");
+        setTimeout(() => el.classList.remove("flash"), 1300);
+      }
 
       const readObjects = computed(() =>
         chatItemObjects.value.filter(
@@ -316,6 +413,21 @@ export default function () {
         }
       }
 
+      watch(
+        () => sortedMessages.value.length,
+        async (newLen, oldLen) => {
+          if (newLen > (oldLen || 0)) {
+            await nextTick();
+            const el = messagesEl.value;
+            if (!el) return;
+            if (oldLen === 0 || isAtBottom) {
+              el.scrollTop = el.scrollHeight;
+              isAtBottom = true;
+            }
+          }
+        },
+      );
+
       const autoJoinedChannels = new Set();
 
       watch(
@@ -374,6 +486,7 @@ export default function () {
       return {
         session,
         me,
+        messagesEl,
         myMessage,
         isSending,
         isStarNext,
@@ -385,6 +498,10 @@ export default function () {
         activeTitle,
         sortedMessages,
         starredMessages,
+        linkMessages,
+        extractLinks,
+        highlightsTab,
+        jumpToMessage,
         isStarred,
         readersFor,
         memberCount,

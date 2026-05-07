@@ -48,7 +48,10 @@ export const MessageBubble = {
     };
   },
   template: `
-    <div :class="['msg', isMine ? 'mine' : 'theirs', { starred: isStarred }]">
+    <div
+      :class="['msg', isMine ? 'mine' : 'theirs', { starred: isStarred }]"
+      :data-msg-url="msg.url"
+    >
       <div class="msg-meta">
         <graffiti-actor-to-handle :actor="msg.actor"></graffiti-actor-to-handle>
         <span class="time">{{ fmtTime(msg.value.published) }}</span>
