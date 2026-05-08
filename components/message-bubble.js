@@ -105,8 +105,9 @@ export const MessageBubble = {
         <button
           v-if="readers.length"
           class="seen-toggle"
+          :title="readers.length + ' of ' + denominator + ' other ' + (denominator === 1 ? 'member' : 'members') + ' have seen this'"
           @click="isSeenOpen = true"
-        >✓✓ Seen by {{ readers.length }}/{{ denominator }}</button>
+        >✓✓ Seen by {{ readers.length }}/{{ denominator }} {{ denominator === 1 ? 'other' : 'others' }}</button>
         <span v-else class="seen-sent">✓ Sent</span>
       </div>
 
@@ -120,7 +121,7 @@ export const MessageBubble = {
             <div class="modal seen-modal">
               <h3>Seen by</h3>
               <p class="muted seen-stats">
-                {{ readers.length }}/{{ denominator }} members
+                {{ readers.length }} of {{ denominator }} other {{ denominator === 1 ? 'member' : 'members' }} (excluding you)
               </p>
               <ul class="seen-list">
                 <li v-for="r in readers" :key="r.actor">
