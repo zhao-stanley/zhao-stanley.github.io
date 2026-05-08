@@ -502,6 +502,18 @@ h3 {
   animation: star-pop 0.3s ease;
 }
 
+.bubble .star-badge {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  left: 100%;
+  margin-left: 0.4rem;
+  color: var(--accent);
+  font-size: 0.95rem;
+  pointer-events: none;
+  text-shadow: 0 0 0.5px rgba(0, 0, 0, 0.4);
+}
+
 @keyframes star-pop {
   0% {
     transform: scale(1);

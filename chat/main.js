@@ -209,15 +209,19 @@ export default function () {
           ),
       );
 
-      const starObjects = computed(() =>
-        chatItemObjects.value.filter(
+      const starObjects = computed(() => {
+        const senderByUrl = new Map(
+          sortedMessages.value.map((m) => [m.url, m.actor]),
+        );
+        return chatItemObjects.value.filter(
           (o) =>
             o.value &&
             o.value.activity === "Star" &&
             o.value.object &&
-            memberActors.value.has(o.actor),
-        ),
-      );
+            memberActors.value.has(o.actor) &&
+            senderByUrl.get(o.value.object) === o.actor,
+        );
+      });
 
       const starredUrls = computed(
         () => new Set(starObjects.value.map((s) => s.value.object)),
@@ -400,6 +404,7 @@ export default function () {
       }
 
       async function toggleStar(msg) {
+        if (msg.actor !== session.value?.actor) return;
         const mine = myStarsFor(msg.url);
         if (mine.length) {
           await Promise.all(

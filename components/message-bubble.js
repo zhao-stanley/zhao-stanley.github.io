@@ -85,7 +85,7 @@ export const MessageBubble = {
               rel="noopener noreferrer"
               class="msg-link"
             >{{ p.value }}</a><template v-else>{{ p.value }}</template></template></span>
-        <div class="actions">
+        <div v-if="isMine" class="actions">
           <button
             class="star"
             :class="{ on: isStarred }"
@@ -93,13 +93,17 @@ export const MessageBubble = {
             :title="isStarred ? 'Unmark important' : 'Mark important'"
           >★</button>
           <button
-            v-if="isMine"
             class="unsend"
             @click="$emit('delete', msg)"
             :disabled="isDeleting"
             title="Unsend"
           >{{ isDeleting ? 'unsending…' : 'unsend' }}</button>
         </div>
+        <span
+          v-else-if="isStarred"
+          class="star-badge"
+          title="Sender marked this important"
+        >★</span>
       </div>
       <div v-if="isMine && denominator > 0" class="seen">
         <button
