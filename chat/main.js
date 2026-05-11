@@ -56,9 +56,12 @@ export default function () {
         </template>
       </div>
 
-      <div v-if="isRecapOpen" class="recap">
+      <div v-if="isRecapOpen" class="recap" @click.stop>
         <header>
-          <h3>Highlights</h3>
+          <div>
+            <h3>Highlights</h3>
+            <p class="recap-subtitle">Important messages and shared links from this chat.</p>
+          </div>
           <button class="icon" @click="isRecapOpen = false">×</button>
         </header>
         <div class="recap-tabs">
